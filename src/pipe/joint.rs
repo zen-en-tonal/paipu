@@ -11,18 +11,26 @@ impl<D, P, X> Joint<D, P, X> {
     }
 }
 
-impl<F, T, P, X> Pipe<X> for Joint<Drain<F, T, X>, P, X>
+impl<F, T, X> Pipe<X> for Joint<F, T, X>
 where
-    F: Filter<X>,
+    F: Filter<X> + Pipe<X>,
     T: Pipe<X>,
-    P: Pipe<X>,
 {
     fn pass(&mut self, x: X) -> Option<X> {
-        if self.0 .0.pass(&x) {
-            self.0 .1.pass(x)
+        if self.0.can_pass(&x) {
+            self.0.pass(x)
         } else {
             self.1.pass(x)
         }
+    }
+}
+
+impl<F, T, X> Filter<X> for Joint<F, T, X>
+where
+    F: Filter<X>,
+{
+    fn can_pass(&self, x: &X) -> bool {
+        self.0.can_pass(x)
     }
 }
 
@@ -35,8 +43,11 @@ impl<X> Pipe<X> for Leak {
     }
 }
 
-impl<F, T, P, X> Joint<Drain<F, T, X>, P, X> {
-    pub fn drain<A, Q>(self, f: A, p: Q) -> Joint<Drain<A, Q, X>, Self, X>
+impl<F, T, X> Joint<F, T, X>
+where
+    F: Filter<X> + Pipe<X>,
+{
+    pub fn drain<A, P>(self, f: A, p: P) -> Joint<Drain<A, P, X>, Self, X>
     where
         A: Filter<X>,
         P: Pipe<X>,
